@@ -1,0 +1,1352 @@
+{
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "view-in-github",
+        "colab_type": "text"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/tirtha0809/Machine-Learning/blob/main/REMOVE_SVCRBFipynb\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "d23c76a2"
+      },
+      "source": [
+        "# Importing Libraries"
+      ],
+      "id": "d23c76a2"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 1,
+      "metadata": {
+        "id": "5b2cef0e"
+      },
+      "outputs": [],
+      "source": [
+        "import numpy as np\n",
+        "import pandas as pd\n",
+        "import tensorflow as tf\n",
+        "import keras as kf\n",
+        "from keras.models import Sequential\n",
+        "from keras.layers import Dense\n",
+        "from matplotlib import pyplot\n",
+        "from os import makedirs\n",
+        "from numpy import dstack\n",
+        "from sklearn.linear_model import LogisticRegression\n",
+        "from sklearn.neighbors import KNeighborsClassifier\n",
+        "from sklearn.ensemble import GradientBoostingClassifier\n",
+        "from sklearn.ensemble import RandomForestClassifier\n",
+        "from sklearn.tree import DecisionTreeClassifier\n",
+        "from xgboost import XGBClassifier\n",
+        "from sklearn.svm import SVC\n",
+        "from sklearn.naive_bayes import GaussianNB\n",
+        "from sklearn.ensemble import AdaBoostClassifier\n",
+        "from lightgbm import LGBMClassifier\n",
+        "from sklearn.preprocessing import StandardScaler\n",
+        "from sklearn.model_selection import train_test_split\n",
+        "from imblearn.over_sampling import SMOTE\n",
+        "from sklearn.metrics import confusion_matrix, accuracy_score\n",
+        "from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score,roc_auc_score,roc_curve,auc\n",
+        "from statistics import mean\n",
+        "import time"
+      ],
+      "id": "5b2cef0e"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 2,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "obp1lLW3UQLZ",
+        "outputId": "823a0a92-6f76-4594-ad06-2632f0f6249b"
+      },
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Mounted at /content/drive\n"
+          ]
+        }
+      ],
+      "source": [
+        "from google.colab import drive\n",
+        "drive.mount('/content/drive')"
+      ],
+      "id": "obp1lLW3UQLZ"
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "78ab07f7"
+      },
+      "source": [
+        "# Importing DataSet"
+      ],
+      "id": "78ab07f7"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 3,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "9309e06d",
+        "outputId": "7e0ee2ae-d57d-404c-c779-8c08815fbaae"
+      },
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "3991\n"
+          ]
+        }
+      ],
+      "source": [
+        "data = pd.read_csv('/content/drive/MyDrive/LANDSLIDE/LandslideData .csv') # 20 features\n",
+        "dataset = data.dropna(axis = 0, how ='any')\n",
+        "X =  dataset.iloc[:,1:-1].values\n",
+        "y = dataset.iloc[:, -1].values\n",
+        "print(len(dataset))"
+      ],
+      "id": "9309e06d"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 4,
+      "metadata": {
+        "id": "588acb2f"
+      },
+      "outputs": [],
+      "source": [
+        "#smote = SMOTE()"
+      ],
+      "id": "588acb2f"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 5,
+      "metadata": {
+        "id": "363487ad"
+      },
+      "outputs": [],
+      "source": [
+        "#x_smote, y_smote = smote.fit_resample(X, y)\n",
+        "smote= SMOTE(k_neighbors = 3)\n",
+        "x_smote,y_smote = smote.fit_resample(X,y)"
+      ],
+      "id": "363487ad"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 6,
+      "metadata": {
+        "id": "654f6958"
+      },
+      "outputs": [],
+      "source": [
+        "from keras.models import load_model"
+      ],
+      "id": "654f6958"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 7,
+      "metadata": {
+        "id": "67861b3e"
+      },
+      "outputs": [],
+      "source": [
+        "# create a custom function to load model\n",
+        "def load_all_models(n_models):\n",
+        "    all_models = list()\n",
+        "    for i in range(n_models):\n",
+        "        # filename\n",
+        "        filename = 'north/model' + str(i + 1) + '.h5'\n",
+        "        # load model\n",
+        "        model = load_model(filename)\n",
+        "        # Add a list of all the weaker learners\n",
+        "        all_models.append(model)\n",
+        "        #print('>loaded %s' % filename)\n",
+        "    return all_models"
+      ],
+      "id": "67861b3e"
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "0c4c39db"
+      },
+      "source": [
+        "## Stacking models"
+      ],
+      "id": "0c4c39db"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 8,
+      "metadata": {
+        "id": "db0754d0"
+      },
+      "outputs": [],
+      "source": [
+        "# create stacked model input dataset as outputs from the ensemble\n",
+        "def stacked_dataset(members, inputX):\n",
+        "    stackX = None\n",
+        "    for model in members:\n",
+        "        # make prediction\n",
+        "        yhat = model.predict(inputX, verbose=0)\n",
+        "        # stack predictions into [rows, members, probabilities]\n",
+        "        if stackX is None:\n",
+        "            stackX = yhat #\n",
+        "        else:\n",
+        "            stackX = dstack((stackX, yhat))\n",
+        "    # flatten predictions to [rows, members x probabilities]\n",
+        "    stackX = stackX.reshape((stackX.shape[0], stackX.shape[1]*stackX.shape[2]))\n",
+        "    return stackX"
+      ],
+      "id": "db0754d0"
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "c1de75a1"
+      },
+      "source": [
+        "## Fit meta-learner"
+      ],
+      "id": "c1de75a1"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 9,
+      "metadata": {
+        "id": "620c3aa9"
+      },
+      "outputs": [],
+      "source": [
+        "# fit a model based on the outputs from the ensemble members\n",
+        "def fit_stacked_model(members, inputX, inputy):\n",
+        "    # create dataset using ensemble\n",
+        "    stackedX = stacked_dataset(members, inputX)\n",
+        "    #print(\"Models Test time: \",(end-start) * 10**3, \"ms\")\n",
+        "    # fit the meta learner\n",
+        "    #model = LogisticRegression() #meta learner\n",
+        "    model = SVC(kernel = 'rbf',random_state = 0,probability= True)\n",
+        "    # model = SVC(kernel = 'linear', random_state = 0,probability=True)\n",
+        "    #model = GaussianNB()\n",
+        "    # model = KNeighborsClassifier(n_neighbors = 3, metric = 'minkowski', p = 2)\n",
+        "    # model = GradientBoostingClassifier(n_estimators=50,learning_rate=0.5, max_depth=6, random_state=0)\n",
+        "    # model = RandomForestClassifier(criterion = 'entropy', random_state = 0)\n",
+        "    # model = LGBMClassifier(random_state=0)\n",
+        "    # model = DecisionTreeClassifier(max_depth=7,criterion = 'entropy', random_state = 0)\n",
+        "    # model = XGBClassifier(n_estimators=50,learning_rate=0.5,max_depth=3)\n",
+        "    # model = AdaBoostClassifier(n_estimators = 100, learning_rate = 1,random_state = 0)\n",
+        "    #model.fit(X_train, y_train)\n",
+        "    model.fit(stackedX, inputy)\n",
+        "    return model"
+      ],
+      "id": "620c3aa9"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 10,
+      "metadata": {
+        "id": "46d953ea"
+      },
+      "outputs": [],
+      "source": [
+        "def stacked_prediction(members, model, inputX):\n",
+        "    # create dataset using ensemble\n",
+        "    stackedX = stacked_dataset(members, inputX)\n",
+        "    # make a prediction\n",
+        "    yhat = model.predict(stackedX)\n",
+        "    return yhat"
+      ],
+      "id": "46d953ea"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 11,
+      "metadata": {
+        "id": "1bd5b4f1"
+      },
+      "outputs": [],
+      "source": [
+        "def stacked_prediction_proba(members,model,inputX):\n",
+        "    # create dataset using ensemble\n",
+        "    stackedX = stacked_dataset(members,inputX)\n",
+        "    # make a prediction\n",
+        "    yhatProb = model.predict_proba(stackedX)\n",
+        "    return yhatProb"
+      ],
+      "id": "1bd5b4f1"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 12,
+      "metadata": {
+        "id": "86c41c29"
+      },
+      "outputs": [],
+      "source": [
+        "acc_train = []\n",
+        "acc_test = []\n",
+        "Precision_macro = []\n",
+        "Precision_micro = []\n",
+        "Recall_macro = []\n",
+        "Recall_micro = []\n",
+        "F1_macro = []\n",
+        "F1_micro = []\n",
+        "AUC_ovo = []\n",
+        "AUC_ovr = []\n",
+        "train_time = []\n",
+        "test_time = []"
+      ],
+      "id": "86c41c29"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 13,
+      "metadata": {
+        "id": "--nkGullVeMc"
+      },
+      "outputs": [],
+      "source": [
+        "num_classes = 13"
+      ],
+      "id": "--nkGullVeMc"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 14,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "426c21a7",
+        "outputId": "f079f0dc-057c-4b55-e1f4-acda10bdf718"
+      },
+      "outputs": [
+        {
+          "metadata": {
+            "tags": null
+          },
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "[ 0.  1.  2.  3.  4.  5.  6.  7.  8.  9. 10. 11.]\n"
+          ]
+        },
+        {
+          "metadata": {
+            "tags": null
+          },
+          "name": "stderr",
+          "output_type": "stream",
+          "text": [
+            "/usr/local/lib/python3.10/dist-packages/keras/src/engine/training.py:3103: UserWarning: You are saving your model as an HDF5 file via `model.save()`. This file format is considered legacy. We recommend using instead the native Keras format, e.g. `model.save('my_model.keras')`.\n",
+            "  saving_api.save_model(\n"
+          ]
+        },
+        {
+          "metadata": {
+            "tags": null
+          },
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "Cross validation Train time:  1560786.4327430725 ms\n",
+            "Cross validation Test time:  8642.458438873291 ms\n",
+            "[ 0.  1.  2.  3.  4.  5.  6.  7.  8.  9. 10. 11.]\n"
+          ]
+        },
+        {
+          "metadata": {
+            "tags": null
+          },
+          "name": "stderr",
+          "output_type": "stream",
+          "text": [
+            "/usr/local/lib/python3.10/dist-packages/keras/src/engine/training.py:3103: UserWarning: You are saving your model as an HDF5 file via `model.save()`. This file format is considered legacy. We recommend using instead the native Keras format, e.g. `model.save('my_model.keras')`.\n",
+            "  saving_api.save_model(\n"
+          ]
+        },
+        {
+          "metadata": {
+            "tags": null
+          },
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "Cross validation Train time:  1533331.9990634918 ms\n",
+            "Cross validation Test time:  7029.576778411865 ms\n",
+            "[ 0.  1.  2.  3.  4.  5.  6.  7.  8.  9. 10. 11.]\n"
+          ]
+        },
+        {
+          "metadata": {
+            "tags": null
+          },
+          "name": "stderr",
+          "output_type": "stream",
+          "text": [
+            "/usr/local/lib/python3.10/dist-packages/keras/src/engine/training.py:3103: UserWarning: You are saving your model as an HDF5 file via `model.save()`. This file format is considered legacy. We recommend using instead the native Keras format, e.g. `model.save('my_model.keras')`.\n",
+            "  saving_api.save_model(\n"
+          ]
+        },
+        {
+          "metadata": {
+            "tags": null
+          },
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "Cross validation Train time:  1591684.8034858704 ms\n",
+            "Cross validation Test time:  9519.673824310303 ms\n",
+            "[ 0.  1.  2.  3.  4.  5.  6.  7.  8.  9. 10. 11.]\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stderr",
+          "text": [
+            "/usr/local/lib/python3.10/dist-packages/keras/src/engine/training.py:3103: UserWarning: You are saving your model as an HDF5 file via `model.save()`. This file format is considered legacy. We recommend using instead the native Keras format, e.g. `model.save('my_model.keras')`.\n",
+            "  saving_api.save_model(\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Cross validation Train time:  1508623.7819194794 ms\n",
+            "Cross validation Test time:  6036.710739135742 ms\n",
+            "[ 0.  1.  2.  3.  4.  5.  6.  7.  8.  9. 10. 11.]\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stderr",
+          "text": [
+            "/usr/local/lib/python3.10/dist-packages/keras/src/engine/training.py:3103: UserWarning: You are saving your model as an HDF5 file via `model.save()`. This file format is considered legacy. We recommend using instead the native Keras format, e.g. `model.save('my_model.keras')`.\n",
+            "  saving_api.save_model(\n"
+          ]
+        },
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Cross validation Train time:  1320912.1417999268 ms\n",
+            "Cross validation Test time:  7366.381645202637 ms\n"
+          ]
+        }
+      ],
+      "source": [
+        "for i in range(0,5):\n",
+        "\n",
+        "    X_train_cv, X_test_cv, y_train_cv, y_test_cv = train_test_split(x_smote, y_smote, test_size = 0.25,random_state = i)\n",
+        "    y_train_cv = y_train_cv - 1\n",
+        "    y_test_cv = y_test_cv - 1\n",
+        "\n",
+        "    sc = StandardScaler()\n",
+        "    X_train_cv = sc.fit_transform(X_train_cv)\n",
+        "    X_test_cv = sc.transform(X_test_cv)\n",
+        "    unique_labels = np.unique(y_train_cv)\n",
+        "    print(unique_labels)\n",
+        "\n",
+        "    start = time.time()\n",
+        "    # Model 1\n",
+        "    ann1 = Sequential()\n",
+        "    ann1.add(tf.keras.layers.Dense(units=15, activation='relu'))\n",
+        "    ann1.add(tf.keras.layers.Dense(units=20, activation='relu'))\n",
+        "    ann1.add(tf.keras.layers.Dense(units=num_classes, activation='softmax'))\n",
+        "    ann1.compile(optimizer = 'adam', loss = kf.losses.SparseCategoricalCrossentropy(), metrics = [kf.metrics.CategoricalAccuracy()])\n",
+        "    ann1.fit(X_train_cv, y_train_cv, batch_size = 128, epochs = 100,verbose=0)\n",
+        "\n",
+        "    # Model 2\n",
+        "    ann2 = Sequential()\n",
+        "    ann2.add(tf.keras.layers.Dense(units=10, activation='relu'))\n",
+        "    ann2.add(tf.keras.layers.Dense(units=15, activation='relu'))\n",
+        "    ann2.add(tf.keras.layers.Dense(units=25, activation='relu'))\n",
+        "    ann2.add(tf.keras.layers.Dense(units=num_classes, activation='softmax'))\n",
+        "    ann2.compile(optimizer = 'adam', loss = kf.losses.SparseCategoricalCrossentropy(), metrics = [kf.metrics.CategoricalAccuracy()])\n",
+        "    ann2.fit(X_train_cv, y_train_cv, batch_size = 128, epochs = 150,verbose=0)\n",
+        "\n",
+        "    # Model 3\n",
+        "    ann3 = Sequential()\n",
+        "    ann3.add(tf.keras.layers.Dense(units=20, activation='relu'))\n",
+        "    ann3.add(tf.keras.layers.Dense(units=25, activation='relu'))\n",
+        "    ann3.add(tf.keras.layers.Dense(units=30, activation='relu'))\n",
+        "    ann3.add(tf.keras.layers.Dense(units=num_classes, activation='softmax'))\n",
+        "    ann3.compile(optimizer = 'adam', loss = kf.losses.SparseCategoricalCrossentropy(), metrics = [kf.metrics.CategoricalAccuracy()])\n",
+        "    ann3.fit(X_train_cv, y_train_cv, batch_size = 128, epochs = 180,verbose=0)\n",
+        "\n",
+        "    # Model 4\n",
+        "\n",
+        "    ann4 = Sequential()\n",
+        "    ann4.add(tf.keras.layers.Dense(units=30, activation='relu'))\n",
+        "    ann4.add(tf.keras.layers.Dense(units=35, activation='relu'))\n",
+        "    ann4.add(tf.keras.layers.Dense(units=40, activation='relu'))\n",
+        "    ann4.add(tf.keras.layers.Dense(units=num_classes, activation='softmax'))\n",
+        "    ann4.compile(optimizer = 'adam', loss = kf.losses.SparseCategoricalCrossentropy(), metrics = [kf.metrics.CategoricalAccuracy()])\n",
+        "    ann4.fit(X_train_cv, y_train_cv, batch_size = 128, epochs = 200,verbose=0)\n",
+        "\n",
+        "    # Model 5\n",
+        "\n",
+        "    ann5 = Sequential()\n",
+        "    ann5.add(tf.keras.layers.Dense(units=40, activation='relu'))\n",
+        "    ann5.add(tf.keras.layers.Dense(units=50, activation='relu'))\n",
+        "    ann5.add(tf.keras.layers.Dense(units=55, activation='relu'))\n",
+        "    ann5.add(tf.keras.layers.Dense(units=num_classes, activation='softmax'))\n",
+        "    ann5.compile(optimizer = 'adam', loss = kf.losses.SparseCategoricalCrossentropy(), metrics = [kf.metrics.CategoricalAccuracy()])\n",
+        "    ann5.fit(X_train_cv, y_train_cv, batch_size = 128, epochs = 250,verbose=0)\n",
+        "\n",
+        "    # Model 6\n",
+        "\n",
+        "    ann6 = Sequential()\n",
+        "    ann6.add(tf.keras.layers.Dense(units=35, activation='relu'))\n",
+        "    ann6.add(tf.keras.layers.Dense(units=45, activation='relu'))\n",
+        "    ann6.add(tf.keras.layers.Dense(units=50, activation='relu'))\n",
+        "    ann6.add(tf.keras.layers.Dense(units=num_classes, activation='softmax'))\n",
+        "    ann6.compile(optimizer = 'adam', loss = kf.losses.SparseCategoricalCrossentropy(), metrics = [kf.metrics.CategoricalAccuracy()])\n",
+        "    ann6.fit(X_train_cv, y_train_cv, batch_size = 128, epochs = 300,verbose=0)\n",
+        "\n",
+        "    # Model 7\n",
+        "\n",
+        "    ann7 = Sequential()\n",
+        "    ann7.add(tf.keras.layers.Dense(units=35, activation='relu'))\n",
+        "    ann7.add(tf.keras.layers.Dense(units=45, activation='relu'))\n",
+        "    ann7.add(tf.keras.layers.Dense(units=50, activation='relu'))\n",
+        "    ann7.add(tf.keras.layers.Dense(units=num_classes, activation='softmax'))\n",
+        "    ann7.compile(optimizer = 'adam', loss = kf.losses.SparseCategoricalCrossentropy(), metrics = [kf.metrics.CategoricalAccuracy()])\n",
+        "    ann7.fit(X_train_cv, y_train_cv, batch_size = 128, epochs = 300,verbose=0)\n",
+        "\n",
+        "    # Model 8\n",
+        "\n",
+        "    ann8 = Sequential()\n",
+        "    ann8.add(tf.keras.layers.Dense(units=35, activation='relu'))\n",
+        "    ann8.add(tf.keras.layers.Dense(units=45, activation='relu'))\n",
+        "    ann8.add(tf.keras.layers.Dense(units=50, activation='relu'))\n",
+        "    ann8.add(tf.keras.layers.Dense(units=num_classes, activation='softmax'))\n",
+        "    ann8.compile(optimizer = 'adam', loss = kf.losses.SparseCategoricalCrossentropy(), metrics = [kf.metrics.CategoricalAccuracy()])\n",
+        "    ann8.fit(X_train_cv, y_train_cv, batch_size = 128, epochs = 300,verbose=0)\n",
+        "\n",
+        "    # Model 9\n",
+        "\n",
+        "    ann9 = Sequential()\n",
+        "    ann9.add(tf.keras.layers.Dense(units=35, activation='relu'))\n",
+        "    ann9.add(tf.keras.layers.Dense(units=45, activation='relu'))\n",
+        "    ann9.add(tf.keras.layers.Dense(units=50, activation='relu'))\n",
+        "    ann9.add(tf.keras.layers.Dense(units=num_classes, activation='softmax'))\n",
+        "    ann9.compile(optimizer = 'adam', loss = kf.losses.SparseCategoricalCrossentropy(), metrics = [kf.metrics.CategoricalAccuracy()])\n",
+        "    ann9.fit(X_train_cv, y_train_cv, batch_size = 128, epochs = 300,verbose=0)\n",
+        "\n",
+        "    # Model 10\n",
+        "\n",
+        "    ann10 = Sequential()\n",
+        "    ann10.add(tf.keras.layers.Dense(units=35, activation='relu'))\n",
+        "    ann10.add(tf.keras.layers.Dense(units=45, activation='relu'))\n",
+        "    ann10.add(tf.keras.layers.Dense(units=50, activation='relu'))\n",
+        "    ann10.add(tf.keras.layers.Dense(units=num_classes, activation='softmax'))\n",
+        "    ann10.compile(optimizer = 'adam', loss = kf.losses.SparseCategoricalCrossentropy(), metrics = [kf.metrics.CategoricalAccuracy()])\n",
+        "    ann10.fit(X_train_cv, y_train_cv, batch_size = 128, epochs = 300,verbose=0)\n",
+        "    # Model 11\n",
+        "\n",
+        "    ann11 = Sequential()\n",
+        "    ann11.add(tf.keras.layers.Dense(units=35, activation='relu'))\n",
+        "    ann11.add(tf.keras.layers.Dense(units=45, activation='relu'))\n",
+        "    ann11.add(tf.keras.layers.Dense(units=50, activation='relu'))\n",
+        "    ann11.add(tf.keras.layers.Dense(units=num_classes, activation='softmax'))\n",
+        "    ann11.compile(optimizer = 'adam', loss = kf.losses.SparseCategoricalCrossentropy(), metrics = [kf.metrics.CategoricalAccuracy()])\n",
+        "    ann11.fit(X_train_cv, y_train_cv, batch_size = 128, epochs = 300,verbose=0)\n",
+        "\n",
+        "    # Model 12\n",
+        "\n",
+        "    ann12 = Sequential()\n",
+        "    ann12.add(tf.keras.layers.Dense(units=35, activation='relu'))\n",
+        "    ann12.add(tf.keras.layers.Dense(units=45, activation='relu'))\n",
+        "    ann12.add(tf.keras.layers.Dense(units=50, activation='relu'))\n",
+        "    ann12.add(tf.keras.layers.Dense(units=num_classes, activation='softmax'))\n",
+        "    ann12.compile(optimizer = 'adam', loss = kf.losses.SparseCategoricalCrossentropy(), metrics = [kf.metrics.CategoricalAccuracy()])\n",
+        "    ann12.fit(X_train_cv, y_train_cv, batch_size = 128, epochs = 300,verbose=0)\n",
+        "\n",
+        "    # Model 13\n",
+        "\n",
+        "    ann13 = Sequential()\n",
+        "    ann13.add(tf.keras.layers.Dense(units=35, activation='relu'))\n",
+        "    ann13.add(tf.keras.layers.Dense(units=45, activation='relu'))\n",
+        "    ann13.add(tf.keras.layers.Dense(units=50, activation='relu'))\n",
+        "    ann13.add(tf.keras.layers.Dense(units=num_classes, activation='softmax'))\n",
+        "    ann13.compile(optimizer = 'adam', loss = kf.losses.SparseCategoricalCrossentropy(), metrics = [kf.metrics.CategoricalAccuracy()])\n",
+        "    ann13.fit(X_train_cv, y_train_cv, batch_size = 128, epochs = 300,verbose=0)\n",
+        "\n",
+        "    # Model 14\n",
+        "\n",
+        "    ann14 = Sequential()\n",
+        "    ann14.add(tf.keras.layers.Dense(units=35, activation='relu'))\n",
+        "    ann14.add(tf.keras.layers.Dense(units=45, activation='relu'))\n",
+        "    ann14.add(tf.keras.layers.Dense(units=50, activation='relu'))\n",
+        "    ann14.add(tf.keras.layers.Dense(units=num_classes, activation='softmax'))\n",
+        "    ann14.compile(optimizer = 'adam', loss = kf.losses.SparseCategoricalCrossentropy(), metrics = [kf.metrics.CategoricalAccuracy()])\n",
+        "    ann14.fit(X_train_cv, y_train_cv, batch_size = 128, epochs = 300,verbose=0)\n",
+        "\n",
+        "    # Model 15\n",
+        "\n",
+        "    ann15 = Sequential()\n",
+        "    ann15.add(tf.keras.layers.Dense(units=35, activation='relu'))\n",
+        "    ann15.add(tf.keras.layers.Dense(units=45, activation='sigmoid'))\n",
+        "    ann15.add(tf.keras.layers.Dense(units=50, activation='relu'))\n",
+        "    ann15.add(tf.keras.layers.Dense(units=num_classes, activation='softmax'))\n",
+        "    ann15.compile(optimizer = 'adam', loss = kf.losses.SparseCategoricalCrossentropy(), metrics = [kf.metrics.CategoricalAccuracy()])\n",
+        "    ann15.fit(X_train_cv, y_train_cv, batch_size = 128, epochs = 300,verbose=0)\n",
+        "\n",
+        "    # Model 16\n",
+        "\n",
+        "    ann16 = Sequential()\n",
+        "    ann16.add(tf.keras.layers.Dense(units=35, activation='relu'))\n",
+        "    ann16.add(tf.keras.layers.Dense(units=45, activation='sigmoid'))\n",
+        "    ann16.add(tf.keras.layers.Dense(units=50, activation='relu'))\n",
+        "    ann16.add(tf.keras.layers.Dense(units=num_classes, activation='softmax'))\n",
+        "    ann16.compile(optimizer = 'adam', loss = kf.losses.SparseCategoricalCrossentropy(), metrics = [kf.metrics.CategoricalAccuracy()])\n",
+        "    ann16.fit(X_train_cv, y_train_cv, batch_size = 128, epochs = 300,verbose=0)\n",
+        "\n",
+        "    ann1.save('north/model1.h5')\n",
+        "    ann2.save('north/model2.h5')\n",
+        "    ann3.save('north/model3.h5')\n",
+        "    ann4.save('north/model4.h5')\n",
+        "    ann5.save('north/model5.h5')\n",
+        "    ann6.save('north/model6.h5')\n",
+        "    ann7.save('north/model7.h5')\n",
+        "    ann8.save('north/model8.h5')\n",
+        "    ann9.save('north/model9.h5')\n",
+        "    ann10.save('north/model10.h5')\n",
+        "    ann11.save('north/model11.h5')\n",
+        "    ann12.save('north/model12.h5')\n",
+        "    ann13.save('north/model13.h5')\n",
+        "    ann14.save('north/model14.h5')\n",
+        "    ann15.save('north/model15.h5')\n",
+        "    ann16.save('north/model16.h5')\n",
+        "\n",
+        "    members = load_all_models(16)\n",
+        "    model = fit_stacked_model(members, X_train_cv,y_train_cv)\n",
+        "    end = time.time()\n",
+        "    print(\"Cross validation Train time: \",(end-start) * 10**3, \"ms\")\n",
+        "    t = (end-start)*1000\n",
+        "    train_time.append(t)\n",
+        "\n",
+        "    start = time.time()\n",
+        "    y_pred = stacked_prediction(members, model, X_test_cv)\n",
+        "    end = time.time()\n",
+        "\n",
+        "    t = (end - start)*1000\n",
+        "    test_time.append(t)\n",
+        "\n",
+        "    print(\"Cross validation Test time: \",(end-start) * 10**3, \"ms\")\n",
+        "    y_test_prob = stacked_prediction_proba(members,model,X_test_cv)\n",
+        "    y_train_pred = stacked_prediction(members, model, X_train_cv)\n",
+        "\n",
+        "    cm = confusion_matrix(y_test_cv, y_pred)\n",
+        "\n",
+        "\n",
+        "    accuracy = accuracy_score(y_test_cv, y_pred)\n",
+        "    acc_test.append(accuracy)\n",
+        "    accuracy_train = accuracy_score(y_train_cv, y_train_pred)\n",
+        "    acc_train.append(accuracy_train)\n",
+        "\n",
+        "    pre_macro = precision_score(y_test_cv, y_pred,average='macro')\n",
+        "    Precision_macro.append(pre_macro)\n",
+        "    pre_micro = precision_score(y_test_cv, y_pred,average='micro')\n",
+        "    Precision_micro.append(pre_micro)\n",
+        "\n",
+        "    re_macro = recall_score(y_test_cv, y_pred,average='macro')\n",
+        "    Recall_macro.append(re_macro)\n",
+        "    re_micro = recall_score(y_test_cv, y_pred,average='micro')\n",
+        "    Recall_micro.append(re_micro)\n",
+        "\n",
+        "    f1_macro = f1_score(y_test_cv, y_pred,average='macro')\n",
+        "    F1_macro.append(f1_macro)\n",
+        "    f1_micro = f1_score(y_test_cv, y_pred,average='micro')\n",
+        "    F1_micro.append(f1_micro)\n",
+        "\n",
+        "    auc_ovo = roc_auc_score(y_test_cv,y_test_prob,multi_class='ovo')\n",
+        "    AUC_ovo.append(auc_ovo)\n",
+        "    auc_ovr = roc_auc_score(y_test_cv,y_test_prob,multi_class='ovr')\n",
+        "    AUC_ovr.append(auc_ovr)\n"
+      ],
+      "id": "426c21a7"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 15,
+      "metadata": {
+        "id": "4631b43e"
+      },
+      "outputs": [],
+      "source": [
+        "result_cv = pd.DataFrame()\n",
+        "result_cv[\"Train_acc\"] = acc_train\n",
+        "result_cv[\"Test_acc\"] = acc_test\n",
+        "result_cv[\"Precision(macro)\"] = Precision_macro\n",
+        "result_cv[\"Precision(micro)\"] = Precision_micro\n",
+        "result_cv[\"Recall(macro)\"] = Recall_macro\n",
+        "result_cv[\"Recall(micro)\"] = Recall_micro\n",
+        "result_cv[\"F1(macro)\"] = F1_macro\n",
+        "result_cv[\"F1(micro)\"] = F1_micro\n",
+        "result_cv[\"AUC(ovo)\"] = AUC_ovo\n",
+        "result_cv[\"AUC(ovr)\"] = AUC_ovr\n",
+        "result_cv[\"Train Time\"] = train_time\n",
+        "result_cv[\"Test Time\"] = test_time"
+      ],
+      "id": "4631b43e"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 16,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "6bf66a36",
+        "outputId": "f6a77527-b550-46f9-88a6-613ed378db5d"
+      },
+      "outputs": [
+        {
+          "data": {
+            "text/plain": [
+              "[1560786.4327430725,\n",
+              " 1533331.9990634918,\n",
+              " 1591684.8034858704,\n",
+              " 1508623.7819194794,\n",
+              " 1320912.1417999268]"
+            ]
+          },
+          "execution_count": 16,
+          "metadata": {},
+          "output_type": "execute_result"
+        }
+      ],
+      "source": [
+        "train_time"
+      ],
+      "id": "6bf66a36"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 17,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "105fd285",
+        "outputId": "223387ca-90b4-4920-96f1-3c67ecdc71d4"
+      },
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "[8642.458438873291,\n",
+              " 7029.576778411865,\n",
+              " 9519.673824310303,\n",
+              " 6036.710739135742,\n",
+              " 7366.381645202637]"
+            ]
+          },
+          "metadata": {},
+          "execution_count": 17
+        }
+      ],
+      "source": [
+        "test_time"
+      ],
+      "id": "105fd285"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 18,
+      "metadata": {
+        "id": "b92aa6da"
+      },
+      "outputs": [],
+      "source": [
+        "result_cv.to_csv(\"filename\", index=False)"
+      ],
+      "id": "b92aa6da"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 19,
+      "metadata": {
+        "id": "0663ab50"
+      },
+      "outputs": [],
+      "source": [
+        "result_cv_avg = pd.DataFrame()\n",
+        "lst = []\n",
+        "x = mean(acc_train)*100\n",
+        "lst.append(x)\n",
+        "result_cv_avg[\"Train_acc\"] = lst\n",
+        "result_cv_avg[\"Test_acc\"] = mean(acc_test)*100\n",
+        "result_cv_avg[\"SD\"] = np.std(acc_test)*100\n",
+        "result_cv_avg[\"Precision(macro)\"] = mean(Precision_macro)\n",
+        "result_cv_avg[\"Precision(micro)\"] = mean(Precision_micro)\n",
+        "result_cv_avg[\"Recall(macro)\"] = mean(Recall_macro)\n",
+        "result_cv_avg[\"Recall(micro)\"] = mean(Recall_micro)\n",
+        "result_cv_avg[\"F1(macro)\"] = mean(F1_macro)\n",
+        "result_cv_avg[\"F1(micro)\"] = mean(F1_micro)\n",
+        "result_cv_avg[\"AUC(ovo)\"] = mean(AUC_ovo)\n",
+        "result_cv_avg[\"AUC(ovr)\"] = mean(AUC_ovr)"
+      ],
+      "id": "0663ab50"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 20,
+      "metadata": {
+        "id": "b3d296c7"
+      },
+      "outputs": [],
+      "source": [
+        "result_cv_avg.to_csv(\"filename\", index=False)"
+      ],
+      "id": "b3d296c7"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 21,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "d737dfcb",
+        "outputId": "a48aec33-dda2-483e-faff-cb0b1e375070"
+      },
+      "outputs": [
+        {
+          "data": {
+            "text/plain": [
+              "[0.999052888689497,\n",
+              " 0.998903344798365,\n",
+              " 0.9991027366532077,\n",
+              " 0.998753800907233,\n",
+              " 0.9990030407257864]"
+            ]
+          },
+          "execution_count": 21,
+          "metadata": {},
+          "output_type": "execute_result"
+        }
+      ],
+      "source": [
+        "acc_train"
+      ],
+      "id": "d737dfcb"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 22,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "5601cc70",
+        "outputId": "9befb32b-9b59-4e1d-932f-a3ca036e8377"
+      },
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "[0.9479587258860476,\n",
+              " 0.9466128308658591,\n",
+              " 0.9481082697771797,\n",
+              " 0.9518468670554808,\n",
+              " 0.9490055331239718]"
+            ]
+          },
+          "metadata": {},
+          "execution_count": 22
+        }
+      ],
+      "source": [
+        "acc_test"
+      ],
+      "id": "5601cc70"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 23,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "a183e93a",
+        "outputId": "859f15df-f512-4d71-c12a-ac3430f990ee"
+      },
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "[0.9480875911702356,\n",
+              " 0.9462837162253509,\n",
+              " 0.9466339091941066,\n",
+              " 0.9528118168081252,\n",
+              " 0.9482148552483176]"
+            ]
+          },
+          "metadata": {},
+          "execution_count": 23
+        }
+      ],
+      "source": [
+        "Precision_macro"
+      ],
+      "id": "a183e93a"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 24,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "919cba03",
+        "outputId": "cd03b652-d99d-44a8-e402-73024bf9cbf3"
+      },
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "[0.9479587258860476,\n",
+              " 0.9466128308658591,\n",
+              " 0.9481082697771797,\n",
+              " 0.9518468670554808,\n",
+              " 0.9490055331239718]"
+            ]
+          },
+          "metadata": {},
+          "execution_count": 24
+        }
+      ],
+      "source": [
+        "Precision_micro"
+      ],
+      "id": "919cba03"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 25,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "da5922e3",
+        "outputId": "9d77e577-523c-4a49-d07a-e18e8bdbcf4e"
+      },
+      "outputs": [
+        {
+          "data": {
+            "text/plain": [
+              "[0.9475831353728356,\n",
+              " 0.9469218058068251,\n",
+              " 0.9463977358336765,\n",
+              " 0.9528163746080237,\n",
+              " 0.9483937939886723]"
+            ]
+          },
+          "execution_count": 25,
+          "metadata": {},
+          "output_type": "execute_result"
+        }
+      ],
+      "source": [
+        "Recall_macro"
+      ],
+      "id": "da5922e3"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 26,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "9da08914",
+        "outputId": "4a334553-7ba0-440f-a314-afc41359b09a"
+      },
+      "outputs": [
+        {
+          "data": {
+            "text/plain": [
+              "[0.9479587258860476,\n",
+              " 0.9466128308658591,\n",
+              " 0.9481082697771797,\n",
+              " 0.9518468670554808,\n",
+              " 0.9490055331239718]"
+            ]
+          },
+          "execution_count": 26,
+          "metadata": {},
+          "output_type": "execute_result"
+        }
+      ],
+      "source": [
+        "Recall_micro"
+      ],
+      "id": "9da08914"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 27,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "d06098bb",
+        "outputId": "70140ed9-9729-4674-a999-1ba54f5288a0"
+      },
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "[0.9478107745871865,\n",
+              " 0.9462956147196676,\n",
+              " 0.9464817864006879,\n",
+              " 0.9527513963559088,\n",
+              " 0.948037284056182]"
+            ]
+          },
+          "metadata": {},
+          "execution_count": 27
+        }
+      ],
+      "source": [
+        "F1_macro"
+      ],
+      "id": "d06098bb"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 28,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "c98a6d5f",
+        "outputId": "2e6954ee-e0f7-4a6a-b878-168c3e3943df"
+      },
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "[0.9479587258860476,\n",
+              " 0.9466128308658591,\n",
+              " 0.9481082697771797,\n",
+              " 0.9518468670554808,\n",
+              " 0.9490055331239718]"
+            ]
+          },
+          "metadata": {},
+          "execution_count": 28
+        }
+      ],
+      "source": [
+        "F1_micro"
+      ],
+      "id": "c98a6d5f"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 29,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "ae3f919c",
+        "outputId": "3d6eabc9-7b57-4a94-e3b2-0ac061a9e8e2"
+      },
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "[0.9960117416821558,\n",
+              " 0.996348325187595,\n",
+              " 0.995597701439932,\n",
+              " 0.9963729643591789,\n",
+              " 0.9957654238044338]"
+            ]
+          },
+          "metadata": {},
+          "execution_count": 29
+        }
+      ],
+      "source": [
+        "AUC_ovo"
+      ],
+      "id": "ae3f919c"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 30,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "9bc6fd04",
+        "outputId": "7cc215bc-c3dd-4f0f-f11b-26b3347e27a5"
+      },
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "3\n"
+          ]
+        }
+      ],
+      "source": [
+        "index = np.argmax(AUC_ovo)\n",
+        "print(index)"
+      ],
+      "id": "9bc6fd04"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 31,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "a85635c8",
+        "outputId": "43cfd4d2-764f-468b-fd57-9e607e7da05d"
+      },
+      "outputs": [
+        {
+          "data": {
+            "text/plain": [
+              "[0.9960442010561016,\n",
+              " 0.9963480842486042,\n",
+              " 0.99572231090061,\n",
+              " 0.9963040802773627,\n",
+              " 0.9958220540614718]"
+            ]
+          },
+          "execution_count": 31,
+          "metadata": {},
+          "output_type": "execute_result"
+        }
+      ],
+      "source": [
+        "AUC_ovr"
+      ],
+      "id": "a85635c8"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 32,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "005129c3",
+        "outputId": "01241652-0c8c-4067-c8c5-479b2f086d34"
+      },
+      "outputs": [
+        {
+          "metadata": {
+            "tags": null
+          },
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "Accuracy(Train): 99.90 %\n",
+            "Accuracy(Test): 94.87 %\n",
+            "Standard Deviation: 0.17%\n",
+            "Precision (macro): 0.948\n",
+            "Precision (micro): 0.949\n",
+            "Recall (macro): 0.948\n",
+            "Recall (micro): 0.949\n",
+            "F1 (macro): 0.948\n",
+            "F1 (micro): 0.949\n",
+            "AUC (ovo): 0.996\n",
+            "AUC (ovr): 0.996\n"
+          ]
+        }
+      ],
+      "source": [
+        "print(\"Accuracy(Train): {:.2f} %\".format(mean(acc_train)*100))\n",
+        "print(\"Accuracy(Test): {:.2f} %\".format(mean(acc_test)*100))\n",
+        "print(\"Standard Deviation: {:.2f}%\".format(np.std(acc_test)*100))\n",
+        "print(\"Precision (macro): %.3f\" %mean(Precision_macro))\n",
+        "print(\"Precision (micro): %.3f\" %mean(Precision_micro))\n",
+        "print(\"Recall (macro): %.3f\" %mean(Recall_macro))\n",
+        "print(\"Recall (micro): %.3f\" %mean(Recall_micro))\n",
+        "print(\"F1 (macro): %.3f\" %mean(F1_macro))\n",
+        "print(\"F1 (micro): %.3f\" %mean(F1_micro))\n",
+        "print(\"AUC (ovo): %.3f\" %mean(AUC_ovo))\n",
+        "print(\"AUC (ovr): %.3f\" %mean(AUC_ovr))"
+      ],
+      "id": "005129c3"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 33,
+      "metadata": {
+        "id": "c4760cea"
+      },
+      "outputs": [],
+      "source": [
+        "from numpy import interp"
+      ],
+      "id": "c4760cea"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 34,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 219
+        },
+        "id": "804ffd5e",
+        "outputId": "2f25972f-f47b-48a3-97ad-4793ac7ac1aa"
+      },
+      "outputs": [
+        {
+          "output_type": "error",
+          "ename": "IndexError",
+          "evalue": "index 12 is out of bounds for axis 1 with size 12",
+          "traceback": [
+            "\u001b[0;31m---------------------------------------------------------------------------\u001b[0m",
+            "\u001b[0;31mIndexError\u001b[0m                                Traceback (most recent call last)",
+            "\u001b[0;32m<ipython-input-34-ad31d8932acc>\u001b[0m in \u001b[0;36m<cell line: 8>\u001b[0;34m()\u001b[0m\n\u001b[1;32m      7\u001b[0m \u001b[0mn_classes\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0;36m14\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m      8\u001b[0m \u001b[0;32mfor\u001b[0m \u001b[0mi\u001b[0m \u001b[0;32min\u001b[0m \u001b[0mrange\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mn_classes\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m----> 9\u001b[0;31m     \u001b[0mfpr\u001b[0m\u001b[0;34m[\u001b[0m\u001b[0mi\u001b[0m\u001b[0;34m]\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mtpr\u001b[0m\u001b[0;34m[\u001b[0m\u001b[0mi\u001b[0m\u001b[0;34m]\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0m_\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mroc_curve\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mnp\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0marray\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mpd\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mget_dummies\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mactual_classes\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m[\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mi\u001b[0m\u001b[0;34m]\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mnp\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0marray\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mpredicted_proba\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m[\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mi\u001b[0m\u001b[0;34m]\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m     10\u001b[0m     \u001b[0mroc_auc\u001b[0m\u001b[0;34m[\u001b[0m\u001b[0mi\u001b[0m\u001b[0;34m]\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mauc\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mfpr\u001b[0m\u001b[0;34m[\u001b[0m\u001b[0mi\u001b[0m\u001b[0;34m]\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mtpr\u001b[0m\u001b[0;34m[\u001b[0m\u001b[0mi\u001b[0m\u001b[0;34m]\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m     11\u001b[0m \u001b[0;31m#     print(\"fpr: \",fpr[i])\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
+            "\u001b[0;31mIndexError\u001b[0m: index 12 is out of bounds for axis 1 with size 12"
+          ]
+        }
+      ],
+      "source": [
+        "actual_classes = y_test_cv\n",
+        "predicted_proba = y_test_prob\n",
+        "\n",
+        "fpr = dict()\n",
+        "tpr = dict()\n",
+        "roc_auc = dict()\n",
+        "n_classes=14\n",
+        "for i in range(n_classes):\n",
+        "    fpr[i], tpr[i], _ = roc_curve(np.array(pd.get_dummies(actual_classes))[:, i], np.array(predicted_proba)[:, i])\n",
+        "    roc_auc[i] = auc(fpr[i], tpr[i])\n",
+        "#     print(\"fpr: \",fpr[i])\n",
+        "#     print(\"tpr: \",tpr[i])\n",
+        "#     print(\"roc_auc: \",roc_auc[i])\n",
+        "\n",
+        "all_fpr = np.unique(np.concatenate([fpr[i] for i in range(n_classes)]))\n",
+        "print(\"all_fpr: \",all_fpr)\n",
+        "mean_tpr = np.zeros_like(all_fpr)\n",
+        "for i in range(n_classes):\n",
+        "    mean_tpr += interp(all_fpr, fpr[i], tpr[i])\n",
+        "mean_tpr /= n_classes\n",
+        "\n",
+        "fpr[\"macro\"] = all_fpr\n",
+        "tpr[\"macro\"] = mean_tpr\n",
+        "roc_auc[\"macro\"] = auc(fpr[\"macro\"], tpr[\"macro\"])\n",
+        "print(\"mean_tpr: \",mean_tpr)\n",
+        "print(\"AUC = \",roc_auc['macro'])"
+      ],
+      "id": "804ffd5e"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "f028e956"
+      },
+      "outputs": [],
+      "source": [
+        "roc_csv = pd.DataFrame()\n",
+        "roc_csv[\"FPR(Macro)\"] = all_fpr\n",
+        "roc_csv[\"TPR(Macro)\"] = mean_tpr"
+      ],
+      "id": "f028e956"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "769b9265"
+      },
+      "outputs": [],
+      "source": [
+        "roc_csv.to_csv(\"filename\", index=False)"
+      ],
+      "id": "769b9265"
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "4okoIVD-OLTe"
+      },
+      "outputs": [],
+      "source": [
+        "import matplotlib.pyplot as plt\n",
+        "import seaborn as sns\n",
+        "from sklearn.metrics import confusion_matrix\n",
+        "from sklearn.metrics import ConfusionMatrixDisplay\n",
+        "import numpy as np\n",
+        "\n",
+        "# Assuming you have already calculated the confusion matrix 'cm' for 14 classes\n",
+        "\n",
+        "# Normalize the confusion matrix\n",
+        "cm_normalized = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]\n",
+        "sns.set(font_scale=1.2)\n",
+        "# Plot the normalized confusion matrix heatmap\n",
+        "fig=plt.figure(figsize=(11, 5))\n",
+        "sns.heatmap(cm_normalized, annot=True, fmt='.1f', cmap='Blues', xticklabels=range(14), yticklabels=range(14))\n",
+        "plt.xlabel('Predicted Labels')\n",
+        "plt.ylabel('True Labels')\n",
+        "fig.savefig('RRR',dpi=300, bbox_inches = 'tight')\n",
+        "# plt.title('Normalized Confusion Matrix Heatmap')\n",
+        "plt.show()"
+      ],
+      "id": "4okoIVD-OLTe"
+    }
+  ],
+  "metadata": {
+    "colab": {
+      "provenance": [],
+      "include_colab_link": true
+    },
+    "kernelspec": {
+      "display_name": "Python 3",
+      "name": "python3"
+    },
+    "language_info": {
+      "codemirror_mode": {
+        "name": "ipython",
+        "version": 3
+      },
+      "file_extension": ".py",
+      "mimetype": "text/x-python",
+      "name": "python",
+      "nbconvert_exporter": "python",
+      "pygments_lexer": "ipython3",
+      "version": "3.8.8"
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 5
+}
